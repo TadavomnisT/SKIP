@@ -1092,6 +1092,59 @@ NOTE:
 
 enddef:
 
+echo "LOG: Looking for keyboard event number." . PHP_EOL;
+
+$event_number = findKeyboardEvent();
+if( $event_number == false )
+{
+    die("\nERROR: Could not find the event number for keyboard.");
+}
+
+echo "LOG: Event number for keyboard is \"" . $event_number . "\"" . PHP_EOL;
+
+$fd = @fopen("/dev/input/" . $event_number, "rb") or die("\nERROR: Could not open event file. \"" . $event_number . "\" \nAre you root? Try sudo command:\n\tsudo php SKIP.php") ;
+
+echo "LOG: Logging the keyboard, Start pressing keys...[Press Control+C to stop]" . PHP_EOL;
+
+while (true) {
+    $ev = fread($fd, 24);
+    var_dump($ev);
+    // $event = unpack("Lsec/Lusec/Stype/Scode/Ivalue", $ev);
+    // if (($event['type'] == 1) && ($event['value'] == 0)) {
+    //       echo $event['code'] . "\n";
+    }
+}
+fclose($fd);
+
+
+function findKeyboardEvent()
+{
+    $content = explode("\n\n", file_get_contents("/proc/bus/input/devices"));
+    foreach ($content as $k1 => $device) {
+        $array = explode( "\n", trim($device));
+        foreach ($array as $k2 => $value) {
+            if( strpos($value, "N: Name") !== false )
+            {
+                $name = $value;   
+            }
+            if( strpos($value, "H: Handler") !== false )
+            {
+                $handler = $value;   
+            }
+        }
+        if( isset( $name ) && isset( $handler ) )
+        {
+            if( strpos( $name, "keyboard" ) !== false )
+            {
+                $handler = "H: Handlers=sysrq kbd leds event0";
+                preg_match("/event[0-9]+/",$handler,$arr);
+                if( isset($arr[0]) )
+                    return $arr[0];
+            }
+        }
+        return false;
+    }
+}
 
 
 ?>
