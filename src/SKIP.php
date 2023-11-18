@@ -19,10 +19,84 @@ NOTE :
     which is located in "/usr/include/linux", this part is licenced under
     GPL-2.0-only WITH Linux-syscall-note.
 
+SWITCHES:
+
+    -h  --help          Print help and exit.
+    -a  --autoload-ec   Load ec from "/usr/include/linuxinput-event-codes.h".
+    -v  --version       Print program version and exit.
+
 */
 
+$autoload_ec =  FALSE;
+$version =  "1.0.0";
+$help = 
+"
+
+S.K.I.P: Secure Key-logger for GNU/Linux using PHP
+* Copyright (c) 2023 Behrad.B (behroora@yahoo.com)
+
+USAGE:
+In some distros You must run the program with root access:
+sudo php SKIP.php [switch]
+
+SWITCHES:
+
+-h  --help          Print this help and exit.
+-a  --autoload-ec   Load ec from \"/usr/include/linuxinput-event-codes.h\".
+-v  --version       Print program version and exit.
+
+AUTHOR :            TadavomnisT (Behrad.B)
+Repo :              https://github.com/TadavomnisT/SeRCH
+REPORTING BUGS :    https://github.com/TadavomnisT/SeRCH/issues
+COPYRIGHT :
+    Copyright (c) 2023   License GPLv3+
+    This is free software: you are free to change and redistribute it.
+    There is NO WARRANTY, to the extent permitted by law.
+
+";
+
+if( isset($argv[1]) )
+switch ($argv[1]) {
+    case '-h':
+        echo $help;
+        exit();
+        break;
+    
+    case '--help':
+        echo $help;
+        exit();
+        break;
+
+    case '-v':
+        echo $version . PHP_EOL;
+        exit();
+        break;
+
+    case '--version':
+        echo $version . PHP_EOL;
+        exit();
+        break;
+    
+    case '-a':
+        $autoload_ec = TRUE;
+        break;
+
+    case '--autoload-ec':
+        $autoload_ec = TRUE;
+        break;
+
+    default: 
+        echo "\nERROR: Unknown switch \"" . $argv[1] . "\" in input.\nUse -h to see avaiable switches.";
+        exit();
+        break;
+}
+
+
+if( $autoload_ec ) 
+    goto autoload;
+
 // No need for that however:3
-define('_INPUT_EVENT_CODES_H', );
+define('_INPUT_EVENT_CODES_H', '' );
 
 /*
  * Device properties and quirks
@@ -953,7 +1027,70 @@ define('SND_TONE', 0x02);
 define('SND_MAX', 0x07);
 define('SND_CNT', (SND_MAX+1));
 
+goto enddef;
 
+autoload:
+
+$content = file_get_contents("/usr/include/linux/input-event-codes.h") or die( "\nERROR: Error while openning \"/usr/include/linux/input-event-codes.h\"" ) ;
+$content = explode("\n", $content);
+$php_def = "";
+foreach ( $content as $key=>$value) {
+    if (explode(" ", $value)[0] == "#define") {
+        $string = preg_replace('!\s+!', ' ', $value);
+        if (strpos($string, "/*") !== false && strpos($string, "*/") === false  ) {
+            $i = 1;
+            do {
+                $string .= " " . trim(preg_replace('!\s+!', ' ', $content[$key + $i]));
+                ++$i;
+            } while ( strpos($content[$key+$i], "/*") === false && strpos($content[$key+$i], "*/") !== false  );
+        }
+        $array = explode( " ", $string);
+        $name = $array[1];
+        $value = @$array[2];
+        $comment = "";
+        if (isset($array[3])) {
+            if ( $array[3] == "/*")
+            {
+                foreach ($array as $key=>$a) {
+                    if ($key == 0 || $key == 1 || $key == 2 )
+                        continue;
+                    $comment .= $a . " ";
+                }
+                $comment = trim($comment);
+            }
+            else
+            {
+                foreach ($array as $key=>$a) {
+                    if ($key == 0 || $key == 1 || $key == 2 )
+                        continue;
+                    if ($a == "/*" )
+                        break;
+                    $value .= $a . " ";
+                }
+                $value = trim($value);
+            }
+        }
+        $line = ("define('" . $name . "', " . (($value != NULL)?$value:"''") . ");") . (($comment !== "") ? (" " . $comment) : "");
+        // echo $line . PHP_EOL;
+        $php_def .= $line;
+    }
+}
+
+eval($php_def);
+/*
+NOTE:
+    Using eval() when the input of function is comming from an ouside source
+    like in this scenario comming from "/usr/include/linux/input-event-codes.h",
+    is a wrong thing to do.
+    Why?
+    Suppose there's no such file as "input-event-codes.h" in that dir, one by
+    creating a file with that name in "/usr/include/linux/" can remotly 
+    execute any PHP code in eval, and since the program is running under
+    root access, it might be fatal.
+    So I should change implementation later :d 
+*/
+
+enddef:
 
 
 
