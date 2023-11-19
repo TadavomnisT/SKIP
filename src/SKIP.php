@@ -1108,11 +1108,28 @@ echo "LOG: Logging the keyboard, Start pressing keys...[Press Control+C to stop]
 
 while (true) {
     $ev = fread($fd, 24);
-    var_dump($ev);
-    // $event = unpack("Lsec/Lusec/Stype/Scode/Ivalue", $ev);
-    // if (($event['type'] == 1) && ($event['value'] == 0)) {
-    //       echo $event['code'] . "\n";
-    }
+    $event = unpack("qsec/qusec/Stype/Scode/Lvalue", $ev);
+    /*
+    Where did this ("qsec/qusec/Stype/Scode/Lvalue") come from?
+    At first I set for : "Lsec/Lusec/Stype/Scode/Ivalue"
+    But it wasn't working,
+    See the Q&A on:
+        https://stackoverflow.com/questions/77510013/processing-linux-input-events-dev-input-event-in-php
+
+            On a 64-bit Linux, the C integer types have the following widths:
+                short: 16 bits
+                int: 32 bits
+                long: 64 bits
+            The input_event struct size is 8 + 8 + 2 + 2 + 4 = 24 bytes.
+            The documentation for the PHP pack() function says:
+                L unsigned long (always 32 bit, machine byte order)
+            There is a mismatch here: you're reading 32 bits instead of 64 for the long fields. You should use this instead:
+                q signed long long (always 64 bit, machine byte order)
+            So the correct unpacking is:
+            $event = unpack("qsec/qusec/Stype/Scode/Lvalue", $ev);
+    */
+    if (($event['type'] == EV_KEY) && ($event['value'] == 0))
+        echo $event['code'] . "\n";
 }
 fclose($fd);
 
